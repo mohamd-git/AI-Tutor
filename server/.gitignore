@@ -1,0 +1,2 @@
+# Never commit your secret key.
+gemini_key.txt

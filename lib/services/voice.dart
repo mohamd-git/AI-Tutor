@@ -1,0 +1,109 @@
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// The settings key where we remember the chosen voice, one per language so
+// the English pick and the Arabic pick do not overwrite each other.
+String voicePrefKey(String langCode) =>
+    langCode == 'ar' ? 'tts_voice_ar' : 'tts_voice';
+
+// Picks the most natural FREE voice the system offers for the given language,
+// honoring the user's saved choice (set in the chat's voice picker) if there
+// is one. Pass langCode 'ar' for Arabic, or 'en' (the default) for English.
+Future<void> applyBestVoice(FlutterTts tts, {String langCode = 'en'}) async {
+  try {
+    // Make sure the engine itself is set to the right language first. This
+    // helps Arabic sound correct even when no named Arabic voice is installed.
+    await tts.setLanguage(langCode == 'ar' ? 'ar-SA' : 'en-US');
+
+    final list = await voicesForLang(tts, langCode);
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(voicePrefKey(langCode));
+    Map? chosen;
+    if (saved != null) {
+      for (final v in list) {
+        if ((v['name'] ?? '').toString() == saved) {
+          chosen = v;
+          break;
+        }
+      }
+    }
+    chosen ??= _best(list);
+    if (chosen != null) {
+      await tts.setVoice({
+        'name': (chosen['name'] ?? '').toString(),
+        'locale': (chosen['locale'] ?? '').toString(),
+      });
+    }
+    await tts.setPitch(1.0);
+    await tts.setSpeechRate(1.0);
+  } catch (_) {
+    // Keep the default voice if anything goes wrong.
+  }
+}
+
+Map? _best(List<Map> voices) {
+  const priorities = ['natural', 'neural', 'online', 'google'];
+  for (final key in priorities) {
+    for (final v in voices) {
+      if ((v['name'] ?? '').toString().toLowerCase().contains(key)) return v;
+    }
+  }
+  return voices.isNotEmpty ? voices.first : null;
+}
+
+// Returns the voices the system has for [langCode], deduplicated by name.
+// Used by the Settings voice picker and by [applyBestVoice].
+Future<List<Map>> voicesForLang(FlutterTts tts, String langCode) async {
+  final raw = await _rawVoices(tts);
+  final list = <Map>[];
+  final seen = <String>{};
+  for (final v in raw) {
+    if (v is Map) {
+      final locale = (v['locale'] ?? '').toString().toLowerCase();
+      final name = (v['name'] ?? '').toString();
+      if (locale.startsWith(langCode) && name.isNotEmpty && seen.add(name)) {
+        list.add(v);
+      }
+    }
+  }
+  return list;
+}
+
+// Browsers load their speech voices lazily, so the very first request can
+// come back empty even when voices exist. Try a few times before giving up.
+Future<List<dynamic>> _rawVoices(FlutterTts tts) async {
+  for (var attempt = 0; attempt < 5; attempt++) {
+    try {
+      final dynamic voices = await tts.getVoices;
+      if (voices is List && voices.isNotEmpty) return voices;
+    } catch (_) {
+      // Try again after a short wait.
+    }
+    await Future.delayed(const Duration(milliseconds: 350));
+  }
+  return const [];
+}
+
+// ---------------------------------------------------------------------------
+// "Read answers aloud" — one app-wide on/off setting, saved on the device.
+// The chat screen reads this as its starting value.
+// ---------------------------------------------------------------------------
+const String _speakAloudKey = 'speak_aloud';
+
+Future<bool> getSpeakAloud() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_speakAloudKey) ?? false;
+  } catch (_) {
+    return false;
+  }
+}
+
+Future<void> setSpeakAloud(bool value) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_speakAloudKey, value);
+  } catch (_) {
+    // Best-effort.
+  }
+}

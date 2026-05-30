@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voice test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; }
+    h1 { font-size: 20px; }
+    #count { font-size: 18px; font-weight: bold; margin: 12px 0; }
+    button { font-size: 15px; padding: 8px 14px; margin: 4px 6px 12px 0; cursor: pointer; }
+    table { border-collapse: collapse; width: 100%; max-width: 760px; }
+    td, th { border: 1px solid #ccc; padding: 4px 8px; font-size: 13px; text-align: left; }
+    tr.ar { background: #d8f5d8; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>What voices does THIS browser have?</h1>
+  <p>Open this same file in <b>Microsoft Edge</b> and in <b>Chrome</b> and compare.
+     Arabic voices are highlighted in green.</p>
+  <div id="count">Loading voices…</div>
+  <button onclick="speakAr()">🔊 Speak Arabic test</button>
+  <button onclick="speakEn()">🔊 Speak English test</button>
+  <button onclick="render()">↻ Refresh list</button>
+  <table>
+    <thead><tr><th>#</th><th>Name</th><th>lang</th><th>local device?</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    function getVoices() { return window.speechSynthesis.getVoices() || []; }
+
+    function render() {
+      const vs = getVoices();
+      const ar = vs.filter(v => v.lang && v.lang.toLowerCase().startsWith('ar'));
+      document.getElementById('count').textContent =
+        'Total voices: ' + vs.length + '   |   Arabic voices: ' + ar.length;
+      const rows = document.getElementById('rows');
+      rows.innerHTML = '';
+      vs.forEach((v, i) => {
+        const tr = document.createElement('tr');
+        if (v.lang && v.lang.toLowerCase().startsWith('ar')) tr.className = 'ar';
+        tr.innerHTML =
+          '<td>' + (i + 1) + '</td>' +
+          '<td>' + v.name + '</td>' +
+          '<td>' + v.lang + '</td>' +
+          '<td>' + v.localService + '</td>';
+        rows.appendChild(tr);
+      });
+    }
+
+    function speakAr() {
+      const u = new SpeechSynthesisUtterance('مرحبا، هذا اختبار للصوت العربي. كيف يبدو هذا الصوت؟');
+      const ar = getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('ar'));
+      if (ar) u.voice = ar;
+      u.lang = 'ar-SA';
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    function speakEn() {
+      const u = new SpeechSynthesisUtterance('Hello, this is an English voice test.');
+      u.lang = 'en-US';
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    window.speechSynthesis.onvoiceschanged = render;
+    render();
+    setTimeout(render, 500);
+    setTimeout(render, 1500);
+  </script>
+</body>
+</html>

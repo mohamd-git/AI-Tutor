@@ -1,0 +1,63 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+# Ignore build outputs, EXCEPT build/web: the compiled web app is committed so
+# the host (Vercel) can serve it directly without installing Flutter.
+/build/*
+!/build/web/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# --- SECRETS: never commit these (they would become public on GitHub) -------
+# Your Gemini API key. The helper reads it locally from this file; when the app
+# is deployed, the key is set as an encrypted environment secret on the host
+# instead, so it never lives in the repo.
+server/gemini_key.txt
+# Standard .env secret files, in case you ever switch to that convention.
+.env
+.env.*
+# ...but a no-secrets template IS fine to share, so keep these:
+!.env.example
+
+# The dev helper writes this when a lesson fails, for local debugging only.
+server/last_error.txt
+
