@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.ai_tutor_flame.twa",
+        "sha256_cert_fingerprints": ["62:6F:0D:07:BB:B0:7B:0C:96:7E:CE:5E:64:68:55:D0:9D:E5:97:65:6D:9D:AD:CC:9C:D8:95:73:CA:17:01:CE"]
+      }
+    }]
