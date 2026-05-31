@@ -246,7 +246,13 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() => _listening = false);
       return;
     }
-    final ready = await _speech.initialize();
+    final ready = await _speech.initialize(
+      onStatus: (status) {
+        if ((status == 'done' || status == 'notListening') && mounted) {
+          setState(() => _listening = false);
+        }
+      },
+    );
     if (!ready) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -260,9 +266,21 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) setState(() => _listening = true);
     await _speech.listen(
       onResult: (result) {
-        setState(() => _controller.text = result.recognizedWords);
+        if (!mounted) return;
+        // Stop on the final result so the recognizer cannot restart and pile
+        // the same phrase up again; clean any repeat that already slipped in.
+        final words = result.finalResult
+            ? collapseRepeatedSpeech(result.recognizedWords)
+            : result.recognizedWords;
+        setState(() => _controller.text = words);
+        if (result.finalResult) {
+          _speech.stop();
+          setState(() => _listening = false);
+        }
       },
       listenOptions: SpeechListenOptions(
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
         localeId: appLang == 'ar' ? 'ar-SA' : null,
       ),
     );

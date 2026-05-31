@@ -107,3 +107,30 @@ Future<void> setSpeakAloud(bool value) async {
     // Best-effort.
   }
 }
+
+// ---------------------------------------------------------------------------
+// Speech INPUT cleanup.
+// On the web, the speech recognizer can restart itself mid-listen and pile the
+// same phrase up over and over (e.g. "what is a cell what is a cell what is a
+// cell ..."). When the recognized text is just one phrase repeated back to
+// back, collapse it to a single copy. The repeated unit must be at least two
+// words, so genuine short repeats like "no no" are left untouched.
+// ---------------------------------------------------------------------------
+String collapseRepeatedSpeech(String text) {
+  final trimmed = text.trim();
+  final words = trimmed.split(RegExp(r'\s+'));
+  final n = words.length;
+  if (n < 4) return trimmed;
+  for (var unit = 2; unit <= n ~/ 2; unit++) {
+    if (n % unit != 0) continue;
+    var matches = true;
+    for (var i = unit; i < n; i++) {
+      if (words[i].toLowerCase() != words[i % unit].toLowerCase()) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return words.sublist(0, unit).join(' ');
+  }
+  return trimmed;
+}

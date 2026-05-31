@@ -8,6 +8,7 @@ import '../i18n.dart';
 import '../services/ask_service.dart';
 import '../services/narration_service.dart';
 import '../services/speaker.dart';
+import '../services/voice.dart';
 
 class PresentationScreen extends StatefulWidget {
   final Uint8List pdfBytes;
@@ -404,13 +405,21 @@ class _AskSheetState extends State<_AskSheet> {
     });
     await _speech.listen(
       onResult: (result) {
-        if (mounted) {
-          setState(() => _controller.text = result.recognizedWords);
+        if (!mounted) return;
+        // Stop on the final result so the recognizer cannot restart and pile
+        // the same phrase up again; clean any repeat that already slipped in.
+        final words = result.finalResult
+            ? collapseRepeatedSpeech(result.recognizedWords)
+            : result.recognizedWords;
+        setState(() => _controller.text = words);
+        if (result.finalResult) {
+          _speech.stop();
+          setState(() => _listening = false);
         }
       },
       listenOptions: SpeechListenOptions(
         listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 4),
+        pauseFor: const Duration(seconds: 3),
         localeId: appLang == 'ar' ? 'ar-SA' : null,
       ),
     );
