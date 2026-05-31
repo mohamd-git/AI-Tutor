@@ -58,6 +58,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  # Used only by tool/generate_icon.dart to draw the app icon. Dev-only; it is
+  # not bundled into the app.
+  image: ^4.3.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
