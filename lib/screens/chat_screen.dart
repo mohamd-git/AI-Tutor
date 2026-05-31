@@ -206,6 +206,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _sending) return;
+    // Stop the mic first (and mark not listening) so a late speech result can't
+    // re-fill the box right after we clear it.
+    if (_listening) {
+      setState(() => _listening = false);
+      await _speech.stop();
+    }
     setState(() {
       _messages.add({'role': 'user', 'text': text});
       _sending = true;
@@ -266,7 +272,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) setState(() => _listening = true);
     await _speech.listen(
       onResult: (result) {
-        if (!mounted) return;
+        // Ignore stray results that arrive after we stop or after sending, or
+        // they would re-fill the box we just cleared.
+        if (!mounted || !_listening) return;
         // Clean every update: on the web the recognizer restarts mid-listen and
         // stacks the phrase up over and over. Also stop as soon as it is final.
         setState(() =>

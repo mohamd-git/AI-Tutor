@@ -405,7 +405,8 @@ class _AskSheetState extends State<_AskSheet> {
     });
     await _speech.listen(
       onResult: (result) {
-        if (!mounted) return;
+        // Ignore stray results that arrive after we stop or after sending.
+        if (!mounted || !_listening) return;
         // Clean every update: on the web the recognizer restarts mid-listen and
         // stacks the phrase up over and over. Also stop as soon as it is final.
         setState(() =>
