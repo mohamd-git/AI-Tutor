@@ -32,6 +32,28 @@
 
   <title>Slide Tutor</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Always load the latest version. This app always needs the network (it
+       calls the /api backend), so the offline service-worker cache gives no
+       real benefit and was serving an old copy of the app after updates.
+       Disable it, and clean up any worker/cache a previous version installed. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      try {
+        navigator.serviceWorker.register = function () {
+          return Promise.reject(new Error('service worker disabled'));
+        };
+      } catch (e) {}
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
+      }).catch(function () {});
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { caches.delete(k); });
+        }).catch(function () {});
+      }
+    }
+  </script>
 </head>
 <body>
   <!--
