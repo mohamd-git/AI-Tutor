@@ -267,12 +267,10 @@ class _ChatScreenState extends State<ChatScreen> {
     await _speech.listen(
       onResult: (result) {
         if (!mounted) return;
-        // Stop on the final result so the recognizer cannot restart and pile
-        // the same phrase up again; clean any repeat that already slipped in.
-        final words = result.finalResult
-            ? collapseRepeatedSpeech(result.recognizedWords)
-            : result.recognizedWords;
-        setState(() => _controller.text = words);
+        // Clean every update: on the web the recognizer restarts mid-listen and
+        // stacks the phrase up over and over. Also stop as soon as it is final.
+        setState(() =>
+            _controller.text = collapseRepeatedSpeech(result.recognizedWords));
         if (result.finalResult) {
           _speech.stop();
           setState(() => _listening = false);

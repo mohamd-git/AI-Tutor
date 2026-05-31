@@ -118,19 +118,65 @@ Future<void> setSpeakAloud(bool value) async {
 // ---------------------------------------------------------------------------
 String collapseRepeatedSpeech(String text) {
   final trimmed = text.trim();
-  final words = trimmed.split(RegExp(r'\s+'));
+  if (trimmed.isEmpty) return trimmed;
+  var words = trimmed.split(RegExp(r'\s+'));
+
+  // (1) Growing pile-up. The recognizer keeps re-sending the phrase from the
+  //     start, so it grows like "hello / hello can / hello can you / ..." all
+  //     stuck together and the opening word repeats many times. If every pass
+  //     is a prefix of the last (most complete) pass, keep only that last pass.
+  //     The prefix check means a normal sentence that just happens to repeat
+  //     its first word ("is it good is it bad") is left alone.
+  final first = words[0].toLowerCase();
+  final firstCount = words.where((w) => w.toLowerCase() == first).length;
+  if (firstCount >= 3) {
+    final starts = <int>[];
+    for (var i = 0; i < words.length; i++) {
+      if (words[i].toLowerCase() == first) starts.add(i);
+    }
+    final segments = [
+      for (var s = 0; s < starts.length; s++)
+        words.sublist(
+            starts[s], s + 1 < starts.length ? starts[s + 1] : words.length)
+    ];
+    final last = segments.last;
+    var isPileup = true;
+    for (final seg in segments) {
+      if (seg.length > last.length) {
+        isPileup = false;
+        break;
+      }
+      for (var i = 0; i < seg.length; i++) {
+        if (seg[i].toLowerCase() != last[i].toLowerCase()) {
+          isPileup = false;
+          break;
+        }
+      }
+      if (!isPileup) break;
+    }
+    if (isPileup) words = last;
+  }
+
+  // (2) Whole-phrase exact repetition: collapse "X X X" -> "X". The repeated
+  //     unit must be at least two words, so real short repeats like "no no" are
+  //     left alone.
   final n = words.length;
-  if (n < 4) return trimmed;
-  for (var unit = 2; unit <= n ~/ 2; unit++) {
-    if (n % unit != 0) continue;
-    var matches = true;
-    for (var i = unit; i < n; i++) {
-      if (words[i].toLowerCase() != words[i % unit].toLowerCase()) {
-        matches = false;
+  if (n >= 4) {
+    for (var unit = 2; unit <= n ~/ 2; unit++) {
+      if (n % unit != 0) continue;
+      var matches = true;
+      for (var i = unit; i < n; i++) {
+        if (words[i].toLowerCase() != words[i % unit].toLowerCase()) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        words = words.sublist(0, unit);
         break;
       }
     }
-    if (matches) return words.sublist(0, unit).join(' ');
   }
-  return trimmed;
+
+  return words.join(' ');
 }
