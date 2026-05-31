@@ -52953,7 +52953,7 @@ if(o!=null){o=o.am(t.Pu).f
 o.Ad(A.a1O(null,null,null,null,null,B.Z,null,A.aI((J.cn($.ci().a)==="ar"?B.a0:B.a1).p1,null,null,null,null,null,null),null,B.iM,null,null,null,null,null,null,null,null,null,null))}s=1
 break}if(p.c!=null)p.a2(new A.aIR(p))
 s=7
-return A.q(o.yW(new A.a20(!1,!0,!1,B.za,0,!1,!1,B.r7,B.r8,J.cn($.ci().a)==="ar"?"ar-SA":null),new A.aIS(p)),$async$t9)
+return A.q(o.yW(new A.a20(!1,!1,!1,B.za,0,!1,!1,B.r7,B.r8,J.cn($.ci().a)==="ar"?"ar-SA":null),new A.aIS(p)),$async$t9)
 case 7:case 1:return A.u(q,r)}})
 return A.v($async$t9,r)},
 M(a){var s,r,q,p,o,n=this,m=null,l=A.V(a),k=a.am(t.F).r.f.gcM(0)==="ar"?B.a0:B.a1,j=n.a.c.a,i=k.a==="ar"?"\u0645\u0631\u062d\u0628\u0627\u064b! \u0627\u0633\u0623\u0644\u0646\u064a \u0623\u064a \u0634\u064a\u0621 \u0639\u0646 \xab"+j+"\xbb. \u0633\u0623\u0634\u0631\u062d \u0628\u0643\u0644\u0645\u0627\u062a \u0628\u0633\u064a\u0637\u0629.":'Hi! Ask me anything about "'+j+'". I will explain in simple words.'
@@ -53983,7 +53983,7 @@ s=1
 break}p.a2(new A.aGV(p))
 o=J.cn($.ci().a)==="ar"?"ar-SA":null
 s=10
-return A.q(p.d.yW(new A.a20(!1,!0,!1,B.za,0,!1,!1,B.r7,B.r8,o),new A.aGW(p)),$async$tT)
+return A.q(p.d.yW(new A.a20(!1,!1,!1,B.za,0,!1,!1,B.r7,B.r8,o),new A.aGW(p)),$async$tT)
 case 10:case 1:return A.u(q,r)}})
 return A.v($async$tT,r)},
 oz(){var s=0,r=A.w(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h

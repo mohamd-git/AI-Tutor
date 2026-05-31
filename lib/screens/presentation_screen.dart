@@ -417,6 +417,10 @@ class _AskSheetState extends State<_AskSheet> {
         }
       },
       listenOptions: SpeechListenOptions(
+        // Only deliver the final, complete sentence. Live partial results pile
+        // up and glue together on some phone browsers; one final result is
+        // clean and reliable on every device.
+        partialResults: false,
         listenFor: const Duration(seconds: 30),
         pauseFor: const Duration(seconds: 3),
         localeId: appLang == 'ar' ? 'ar-SA' : null,
