@@ -5,9 +5,10 @@
 //   dart run tool/generate_icon.dart                  (reads assets/icon/source.png)
 //   dart run tool/generate_icon.dart C:\path\icon.png (reads a file anywhere)
 //
-// This is a development tool only; it is not bundled into the app. The source
-// is center-cropped to a square and placed full-bleed on the icon's own blue so
-// there are never transparent or black corners.
+// The source is center-cropped to a square. If it sits on a solid (e.g. black)
+// background, that background is flood-filled from the corners with the icon's
+// own blue gradient, so the result is seamless full-bleed with no dark edges.
+// Development tool only; it is not bundled into the app.
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -43,51 +44,38 @@ void main(List<String> args) {
       height: masterSize,
       interpolation: img.Interpolation.cubic);
 
-  // Find the icon's background blue by sampling points that sit in the open
-  // blue area (top edge and sides, away from the corners).
-  final blue = _sampleBrandColor(master);
-  stdout.writeln('brand color: ${_hex(blue)}');
+  // Sample the icon's own background blue at the top and bottom (along the
+  // center, away from the corners) so we can refill the dark background with a
+  // matching gradient instead of a flat color.
+  final top = _sampleAt(master, 0.5, 0.05) ?? img.ColorRgb8(42, 155, 251);
+  final bottom = _sampleAt(master, 0.5, 0.95) ?? top;
+  stdout.writeln('background blue: ${_hex(top)} -> ${_hex(bottom)}');
 
-  // The source sits on a solid (often black) background. Flood-fill that
-  // background inward from the four corners with the icon's own blue, so the
-  // result is seamless full-bleed with no dark corners. Only the connected
-  // background is touched - the artwork in the middle is left alone.
-  _fillBackground(master, blue);
+  // Remove the solid (black) background by flood-filling it inward from the
+  // four corners with that gradient. Only the connected background is touched;
+  // the artwork in the middle is never reached.
+  _fillBackground(master, top, bottom);
 
-  // Standard icons: the (now full-bleed) art at its natural size.
   _writePng(master, 'assets/icon/app_icon.png');
   _writePng(_resize(master, 512), 'web/icons/Icon-512.png');
   _writePng(_resize(master, 192), 'web/icons/Icon-192.png');
   _writePng(_resize(master, 64), 'web/favicon.png');
 
-  // Maskable icons: art inset on full-bleed blue, so launchers that crop to a
-  // circle never clip the artwork.
-  final maskable = _onBlue(master, blue, 0.90);
+  // Maskable: the art inset on a matching gradient, so launchers that crop to a
+  // circle never clip a corner element (like the PDF tag).
+  final maskable = _maskable(master, top, bottom);
   _writePng(_resize(maskable, 512), 'web/icons/Icon-maskable-512.png');
   _writePng(_resize(maskable, 192), 'web/icons/Icon-maskable-192.png');
 
   stdout.writeln('done');
 }
 
-// Places [master] (scaled to [frac] of the canvas) centered on a solid [blue]
-// square, so the result is always full-bleed with no transparent corners.
-img.Image _onBlue(img.Image master, img.ColorRgb8 blue, double frac) {
-  final canvas = img.Image(width: masterSize, height: masterSize, numChannels: 4);
-  img.fill(canvas, color: blue);
-  final inner = (masterSize * frac).round();
-  final scaled = inner == masterSize
-      ? master
-      : img.copyResize(master,
-          width: inner, height: inner, interpolation: img.Interpolation.cubic);
-  final off = (masterSize - inner) ~/ 2;
-  img.compositeImage(canvas, scaled, dstX: off, dstY: off);
-  return canvas;
-}
+img.Image _resize(img.Image src, int size) => img.copyResize(src,
+    width: size, height: size, interpolation: img.Interpolation.average);
 
-// Recolors the solid background - the connected run of near-black pixels that
-// touches the corners - to [fill]. The artwork in the middle is not connected
-// to the corners, so it is left untouched.
-void _fillBackground(img.Image im, img.Color fill) {
+// Flood-fills the connected near-black background (reached from the corners)
+// with a top-to-bottom [top]->[bottom] gradient.
+void _fillBackground(img.Image im, img.ColorRgb8 top, img.ColorRgb8 bottom) {
   final w = im.width;
   final h = im.height;
   final visited = List<bool>.filled(w * h, false);
@@ -98,8 +86,7 @@ void _fillBackground(img.Image im, img.Color fill) {
     final idx = y * w + x;
     if (visited[idx]) return;
     final p = im.getPixel(x, y);
-    final maxc = math.max(p.r, math.max(p.g, p.b));
-    if (maxc < 70) {
+    if (math.max(p.r, math.max(p.g, p.b)) < 70) {
       visited[idx] = true;
       stack.add(idx);
     }
@@ -111,39 +98,48 @@ void _fillBackground(img.Image im, img.Color fill) {
   consider(w - 1, h - 1);
   while (stack.isNotEmpty) {
     final idx = stack.removeLast();
-    im.setPixel(idx % w, idx ~/ w, fill);
-    consider((idx % w) - 1, idx ~/ w);
-    consider((idx % w) + 1, idx ~/ w);
-    consider(idx % w, (idx ~/ w) - 1);
-    consider(idx % w, (idx ~/ w) + 1);
+    final x = idx % w;
+    final y = idx ~/ w;
+    im.setPixel(x, y, _lerp(top, bottom, h <= 1 ? 0.0 : y / (h - 1)));
+    consider(x - 1, y);
+    consider(x + 1, y);
+    consider(x, y - 1);
+    consider(x, y + 1);
   }
 }
 
-img.Image _resize(img.Image src, int size) => img.copyResize(src,
-    width: size, height: size, interpolation: img.Interpolation.average);
-
-img.ColorRgb8 _sampleBrandColor(img.Image im) {
-  const points = <List<double>>[
-    [0.5, 0.06],
-    [0.5, 0.10],
-    [0.08, 0.5],
-    [0.92, 0.5],
-    [0.5, 0.5],
-  ];
-  for (final p in points) {
-    final x = (im.width * p[0]).round().clamp(0, im.width - 1);
-    final y = (im.height * p[1]).round().clamp(0, im.height - 1);
-    final px = im.getPixel(x, y);
-    final a = px.a.toDouble();
-    final r = px.r.toInt();
-    final g = px.g.toInt();
-    final b = px.b.toInt();
-    // Want an opaque, clearly-blue pixel (blue dominant, not near-black/white).
-    if (a > 200 && b > 90 && b > r + 20 && b > g + 10) {
-      return img.ColorRgb8(r, g, b);
-    }
+// A full square filled with the [top]->[bottom] vertical gradient.
+img.Image _gradientCanvas(int size, img.ColorRgb8 top, img.ColorRgb8 bottom) {
+  final canvas = img.Image(width: size, height: size, numChannels: 4);
+  for (var y = 0; y < size; y++) {
+    final color = _lerp(top, bottom, size <= 1 ? 0.0 : y / (size - 1));
+    img.drawLine(canvas, x1: 0, y1: y, x2: size - 1, y2: y, color: color);
   }
-  return img.ColorRgb8(31, 99, 233); // #1F63E9 fallback
+  return canvas;
+}
+
+img.Image _maskable(img.Image master, img.ColorRgb8 top, img.ColorRgb8 bottom) {
+  final canvas = _gradientCanvas(masterSize, top, bottom);
+  const frac = 0.90;
+  final inner = (masterSize * frac).round();
+  final scaled = img.copyResize(master,
+      width: inner, height: inner, interpolation: img.Interpolation.cubic);
+  final off = (masterSize - inner) ~/ 2;
+  img.compositeImage(canvas, scaled, dstX: off, dstY: off);
+  return canvas;
+}
+
+img.ColorRgb8 _lerp(img.ColorRgb8 a, img.ColorRgb8 b, double t) {
+  int c(num x, num y) => (x + (y - x) * t).round();
+  return img.ColorRgb8(c(a.r, b.r), c(a.g, b.g), c(a.b, b.b));
+}
+
+img.ColorRgb8? _sampleAt(img.Image im, double fx, double fy) {
+  final x = (im.width * fx).round().clamp(0, im.width - 1);
+  final y = (im.height * fy).round().clamp(0, im.height - 1);
+  final p = im.getPixel(x, y);
+  if (p.a.toDouble() < 200) return null;
+  return img.ColorRgb8(p.r.toInt(), p.g.toInt(), p.b.toInt());
 }
 
 String _hex(img.ColorRgb8 c) {
