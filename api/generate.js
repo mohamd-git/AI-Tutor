@@ -117,8 +117,11 @@ module.exports = async (req, res) => {
     ];
     const out = await callGemini(apiKey, parts, {
       jsonOut: true,
-      maxTokens: 32768,
-      think: true,
+      maxTokens: 16384,
+      // Thinking is OFF on the hosted version: it adds ~30s+ of latency and
+      // pushes content-heavy PDFs past the host's 60-second limit (HTTP 504).
+      // The detailed prompt still produces good lessons without it.
+      think: false,
     });
     const parsed = JSON.parse(out);
     if (!parsed.sourceName) parsed.sourceName = fileName;
