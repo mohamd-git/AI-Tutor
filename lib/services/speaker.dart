@@ -1,9 +1,10 @@
 // Speaks text out loud for the app (web only).
 //
-// English uses the device's own installed voices: instant and offline.
-// Arabic is spoken through the helper's `/tts` route, which fetches a free
-// online Arabic voice - because most Windows devices and browsers have NO
-// Arabic voice installed at all, so the device engine cannot say it.
+// All speech plays through the helper's `/tts` route (a free online voice) in a
+// browser <audio> element. We use the online voice for EVERY language because
+// phone browsers refuse to start the device speech engine unless it begins in
+// the exact instant of a tap; an <audio> element, once unlocked by that first
+// tap, keeps playing for the rest of the lecture.
 //
 // One [Speaker] per screen. Call [dispose] when the screen is closed.
 //
@@ -54,14 +55,33 @@ class Speaker {
   // playing first.
   Future<void> speak(String text) async {
     final clean = text.trim();
-    await stop();
+    // Stop anything playing WITHOUT awaiting: an await here would move the new
+    // audio outside the tap that started it, and phone browsers block audio
+    // that does not begin during a tap. Then start playback synchronously, so
+    // the first play() runs inside the user's tap - which unlocks audio for the
+    // rest of the lecture.
+    _stopNow();
     if (clean.isEmpty) return;
-    if (appLang == 'ar') {
-      _startCloud(clean);
-    } else {
-      _cloudActive = false;
-      await _tts.speak(clean);
+    // The online voice (an <audio> element) for every language; it plays on
+    // phones, where the device speech engine will not start on its own.
+    _startCloud(clean);
+  }
+
+  // A synchronous stop, used right before starting new speech so that nothing
+  // awaits between the user's tap and the new audio beginning.
+  void _stopNow() {
+    _cloudActive = false;
+    _queue = const [];
+    _index = 0;
+    final audio = _audio;
+    if (audio != null) {
+      try {
+        audio.pause();
+      } catch (_) {}
     }
+    try {
+      _tts.stop();
+    } catch (_) {}
   }
 
   // Stops all speech immediately (both the device voice and the online voice).
